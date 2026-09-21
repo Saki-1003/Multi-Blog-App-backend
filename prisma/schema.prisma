@@ -13,30 +13,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
-  id Int @id @default(autoincrement())
-  username String @unique
-  email String @unique
-  password String
-  avatar String?
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 逆向きリレーション
+  blogs           BlogSite[]
+  comments        Comment[]
+  likes           Like[]
+  favoriteSites   FavoriteSite[]
+  // お気に入り著者（自分がフォローしている著者
+  favoriteAuthors FavoriteAuthor[] @relation("UserFavorites")
+  // 自分をフォローしているユーザー
+  authorFollowers FavoriteAuthor[] @relation("AuthorFollowers")
+  recentReads     RecentRead[]
+}
+
+model BlogSite {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  title       String
+  description String?
+  heroImg     String?
+  about       String?
+  aboutImg    String?
+  themeColor  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ownerId     Int
+
+  // リレーション
+  owner User @relation(fields: [ownerId], references: [id])
+
+  // 逆向きリレーション
+  posts         BlogPost[]
+  favoriteSites FavoriteSite[]
+}
+
+model BlogPost {
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  title      String
+  category   String?
+  summary    String?
+  content    String
+  images     String[]
+  ogImage    String?
+  tags       String[]
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  blogSiteId Int
+
+  // リレーション
+  blogSite BlogSite @relation(fields: [blogSiteId], references: [id])
+
+  // 逆向きのリレーション
   comments Comment[]
+  likes    Like[]
+  readBy   RecentRead[]
 }
 
 model Comment {
-  id Int @id @default(autoincrement())
-  textField String
+  id        Int      @id @default(autoincrement())
+  comment   String
   createdAt DateTime @default(now())
-  authorId Int
-  author User @relation(fields: [authorId], references: [id])
+  updatedAt DateTime @updatedAt
+  userId    Int
+  postId    Int
+
+  // リレーション
+  user User     @relation(fields: [userId], references: [id])
+  post BlogPost @relation(fields: [postId], references: [id])
 }
 
-model Post {
-  id Int @id @default(autoincrement())
-  title String
-  category String
-  summary String
-  content String
-  file String
+model Like {
+  id        Int      @id @default(autoincrement())
   createdAt DateTime @default(now())
+  userId    Int
+  postId    Int
+
+  user User     @relation(fields: [userId], references: [id])
+  post BlogPost @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId]) // 同じ記事に2回Likeできないようにする
+}
+
+model RecentRead {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  userId Int
+  postId Int
+
+  user User     @relation(fields: [userId], references: [id])
+  post BlogPost @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId]) // 同じ記事を2回登録できない
+}
+
+model FavoriteSite {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  userId Int
+  siteId Int
+
+  user User     @relation(fields: [userId], references: [id])
+  site BlogSite @relation(fields: [siteId], references: [id])
+
+  @@unique([userId, siteId]) // 同じサイトを2回お気に入りできない
+}
+
+model FavoriteAuthor {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+
+  userId   Int
+  authorId Int
+
+  user   User @relation("UserFavorites", fields: [userId], references: [id])
+  author User @relation("AuthorFollowers", fields: [authorId], references: [id])
+
+  @@unique([userId, authorId])
 }
